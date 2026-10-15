@@ -1,0 +1,8 @@
+{
+  "name": "Aurum Signal Live Gold",
+  "short_name": "Aurum Signal",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#09111f",
+  "theme_color": "#101827"
+}
