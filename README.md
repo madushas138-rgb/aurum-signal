@@ -17,9 +17,8 @@ header{border-bottom:1px solid #292d37;padding:8px 0 18px;margin-bottom:16px}
 .panel{background:var(--panel);border:1px solid #292e39;border-radius:14px;padding:16px;margin:12px 0}
 .label{font-size:11px;letter-spacing:1px;color:var(--muted)}
 .price{font-size:34px;font-weight:750;margin:8px 0}
-.gold{color:var(--gold)}
 .row{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
-button{background:#202633;color:#fff;border:1px solid #394152;border-radius:9px;padding:11px 16px;font-weight:700}
+button{background:#202633;color:#fff;border:1px solid #394152;border-radius:9px;padding:11px 16px;font-weight:700;cursor:pointer}
 button.active{background:var(--gold);color:#17130a;border-color:var(--gold)}
 button:disabled{opacity:.5}
 #chart{height:300px;width:100%;margin-top:16px}
@@ -66,37 +65,36 @@ button:focus-visible{outline:2px solid var(--gold)}
 <section class="panel">
 <div class="label">TRADING SIGNAL · RULE-BASED</div>
 <div class="status wait" id="signal">WAIT</div>
-<div class="note" id="reason">Waiting for verified candle data.</div>
+<div class="note" id="reason">Waiting for candle data.</div>
 <div class="grid">
 <div class="cell"><div class="label">ENTRY</div><div class="val" id="entry">--</div></div>
 <div class="cell"><div class="label">STOP LOSS</div><div class="val" id="sl">--</div></div>
 <div class="cell"><div class="label">TAKE PROFIT 1</div><div class="val" id="tp1">--</div></div>
 <div class="cell"><div class="label">TAKE PROFIT 2</div><div class="val" id="tp2">--</div></div>
 <div class="cell"><div class="label">TAKE PROFIT 3</div><div class="val" id="tp3">--</div></div>
-<div class="cell"><div class="label">RISK / REWARD</div><div class="val" id="rr">--</div></div>
+<div class="cell"><div class="label">RISK / REWARD</div><div class="val" id="rr">1:1 · 1:2 · 1:3</div></div>
 </div>
 </section>
 
 <section class="panel">
 <div class="label">DATA & ALERTS</div>
-<p class="note" id="dataStatus">Data source: Twelve Data via secure Worker.</p>
-<p class="note">This page does not send background or push notifications. Signals are technical rule outputs, not guaranteed predictions. Verify prices and risk before any trade.</p>
+<p class="note" id="dataStatus">Data source: Twelve Data XAU/USD via secure Worker.</p>
+<p class="note">SL uses 2.5 × ATR. TP1/TP2/TP3 use 1R/2R/3R. Signals are technical rule outputs, not guaranteed predictions. Verify prices and risk before any trade. This page does not send background or push notifications.</p>
 </section>
 </main>
 
 <script>
-const API = "https://aurum-candles-api.madushas138.workers.dev/";
-let timeframe = "5min";
-let chart, candles, bars = [];
-const $ = id => document.getElementById(id);
-const fmt = n => Number(n).toFixed(2);
+const API="https://aurum-candles-api.madushas138.workers.dev/";
+let timeframe="5min",chart=null,candles=null,bars=[];
+const $=id=>document.getElementById(id);
+const fmt=n=>Number(n).toFixed(2);
 
 function initChart(){
   if(!window.LightweightCharts){
-    $("chartStatus").textContent = "Chart library failed to load. Check internet connection.";
+    $("chartStatus").textContent="Chart library failed to load. Check internet connection.";
     return;
   }
-  chart = LightweightCharts.createChart($("chart"), {
+  chart=LightweightCharts.createChart($("chart"),{
     width:$("chart").clientWidth,
     height:$("chart").clientHeight,
     layout:{background:{color:"#131720"},textColor:"#aab2c0"},
@@ -105,17 +103,17 @@ function initChart(){
     timeScale:{borderColor:"#303644",timeVisible:true,secondsVisible:false},
     localization:{priceFormatter:p=>p.toFixed(2)}
   });
-  candles = chart.addCandlestickSeries({
+  candles=chart.addCandlestickSeries({
     upColor:"#25c99a",downColor:"#ff6675",
     borderUpColor:"#25c99a",borderDownColor:"#ff6675",
     wickUpColor:"#25c99a",wickDownColor:"#ff6675"
   });
   window.addEventListener("resize",()=>{
-    if(chart) chart.applyOptions({width:$("chart").clientWidth});
+    if(chart)chart.applyOptions({width:$("chart").clientWidth});
   });
 }
 
-function ema(data, period){
+function ema(data,period){
   const k=2/(period+1);
   let v=data[0].close;
   return data.map((b,i)=>{
@@ -124,19 +122,20 @@ function ema(data, period){
   });
 }
 
-function rsi(data, period=14){
-  if(data.length<period+1) return 50;
-  let gains=0, losses=0;
+function rsi(data,period=14){
+  if(data.length<period+1)return 50;
+  let gains=0,losses=0;
   for(let i=data.length-period;i<data.length;i++){
     const d=data[i].close-data[i-1].close;
-    if(d>0) gains+=d; else losses-=d;
+    if(d>0)gains+=d;
+    else losses-=d;
   }
-  if(losses===0) return 100;
+  if(losses===0)return 100;
   return 100-(100/(1+gains/losses));
 }
 
-function atr(data, period=14){
-  if(data.length<period+1) return 0;
+function atr(data,period=14){
+  if(data.length<period+1)return 0;
   let sum=0;
   for(let i=data.length-period;i<data.length;i++){
     const prev=data[i-1].close;
@@ -147,37 +146,53 @@ function atr(data, period=14){
   return sum/period;
 }
 
-function setText(id, value){$(id).textContent=value;}
+function setText(id,value){
+  $(id).textContent=value;
+}
 
 function resetSignal(message){
   setText("signal","WAIT");
   $("signal").className="status wait";
   setText("reason",message);
-  ["entry","sl","tp1","tp2","tp3","rr"].forEach(id=>setText(id,"--"));
+  ["entry","sl","tp1","tp2","tp3"].forEach(id=>setText(id,"--"));
+  setText("rr","1:1 · 1:2 · 1:3");
 }
 
 function makeSignal(data){
   resetSignal("No clear setup under the current EMA/RSI rules.");
-  if(data.length<30) return;
+  if(data.length<30)return;
 
-  const e9=ema(data,9), e21=ema(data,21);
+  const e9=ema(data,9);
+  const e21=ema(data,21);
   const last=data[data.length-1];
-  const fast=e9[e9.length-1], slow=e21[e21.length-1];
-  const momentum=rsi(data), volatility=atr(data);
+  const fast=e9[e9.length-1];
+  const slow=e21[e21.length-1];
+  const momentum=rsi(data);
+  const volatility=atr(data);
 
-  if(!volatility || !Number.isFinite(volatility)) return;
+  if(!volatility||!Number.isFinite(volatility))return;
 
   let side="";
-  if(fast>slow && last.close>fast && momentum>=52 && momentum<=72) side="BUY";
-  else if(fast<slow && last.close<fast && momentum<=48 && momentum>=28) side="SELL";
-  else return;
+  if(fast>slow&&last.close>fast&&momentum>=52&&momentum<=72){
+    side="BUY";
+  }else if(fast<slow&&last.close<fast&&momentum<=48&&momentum>=28){
+    side="SELL";
+  }else{
+    return;
+  }
 
   const entry=last.close;
-  const risk=volatility*1.5;
+
+  // WIDER STOP LOSS: 2.5 x ATR
+  const risk=volatility*2.5;
   const sign=side==="BUY"?1:-1;
+
   setText("signal",side);
   $("signal").className="status "+(side==="BUY"?"buy":"sell");
-  setText("reason",`EMA 9/21 trend and RSI ${momentum.toFixed(1)} agree. Candle close: ${last.time}. Rule-based setup; not a guarantee.`);
+  setText("reason",
+    `EMA 9/21 trend and RSI ${momentum.toFixed(1)} agree. ATR-based SL = 2.5×ATR. Candle close: ${new Date(last.time*1000).toLocaleString()}. Rule-based setup; not a guarantee.`
+  );
+
   setText("entry",fmt(entry));
   setText("sl",fmt(entry-sign*risk));
   setText("tp1",fmt(entry+sign*risk));
@@ -188,27 +203,45 @@ function makeSignal(data){
 
 async function loadData(){
   $("refresh").disabled=true;
-  setText("chartStatus",`Loading ${timeframe==="1min"?"M1":"M5"} candles...`);
+  setText("chartStatus",
+    `Loading ${timeframe==="1min"?"M1":"M5"} candles...`
+  );
+
   try{
     const response=await fetch(API+"?interval="+timeframe,{cache:"no-store"});
     const data=await response.json();
-    if(!response.ok || data.status==="error" || !Array.isArray(data.values)){
-      throw new Error(data.error || data.message || "Candle data unavailable");
+
+    if(!response.ok||data.status==="error"||!Array.isArray(data.values)){
+      throw new Error(data.error||data.message||"Candle data unavailable");
     }
+
     bars=data.values.map(v=>({
       time:Math.floor(Date.parse(v.datetime.replace(" ","T")+"Z")/1000),
-      open:Number(v.open),high:Number(v.high),
-      low:Number(v.low),close:Number(v.close)
-    })).filter(b=>Number.isFinite(b.time)&&Number.isFinite(b.close))
-      .sort((a,b)=>a.time-b.time);
+      open:Number(v.open),
+      high:Number(v.high),
+      low:Number(v.low),
+      close:Number(v.close)
+    })).filter(b=>
+      Number.isFinite(b.time)&&Number.isFinite(b.open)&&
+      Number.isFinite(b.high)&&Number.isFinite(b.low)&&
+      Number.isFinite(b.close)
+    ).sort((a,b)=>a.time-b.time);
 
-    if(bars.length<25) throw new Error("Not enough candles for analysis");
+    if(bars.length<25)throw new Error("Not enough candles for analysis");
+    if(!candles||!chart)throw new Error("Chart library is not ready. Refresh the page.");
+
     candles.setData(bars);
     chart.timeScale().fitContent();
+
     setText("price","$"+fmt(bars[bars.length-1].close));
-    setText("updated","Last candle: "+new Date(bars[bars.length-1].time*1000).toLocaleString());
-    setText("chartStatus",`${bars.length} candles loaded · ${timeframe.toUpperCase()}`);
+    setText("updated",
+      "Last candle: "+new Date(bars[bars.length-1].time*1000).toLocaleString()
+    );
+    setText("chartStatus",
+      `${bars.length} candles loaded · ${timeframe.toUpperCase()}`
+    );
     setText("dataStatus","Data source: Twelve Data XAU/USD via Cloudflare Worker.");
+
     makeSignal(bars);
   }catch(e){
     resetSignal("Live data failed. No signal is shown.");
@@ -222,10 +255,13 @@ async function loadData(){
 document.querySelectorAll(".tf").forEach(btn=>{
   btn.addEventListener("click",()=>{
     timeframe=btn.dataset.tf;
-    document.querySelectorAll(".tf").forEach(b=>b.classList.toggle("active",b===btn));
+    document.querySelectorAll(".tf").forEach(b=>
+      b.classList.toggle("active",b===btn)
+    );
     loadData();
   });
 });
+
 $("refresh").addEventListener("click",loadData);
 initChart();
 loadData();
