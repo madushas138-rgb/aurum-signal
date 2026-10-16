@@ -242,7 +242,16 @@ async function loadData(){
     );
     setText("dataStatus","Data source: Twelve Data XAU/USD via Cloudflare Worker.");
 
-    makeSignal(bars);
+    
+const candleSeconds = timeframe==="1min" ? 60 : 300;
+const now = Math.floor(Date.now()/1000);
+
+const closedBars = bars.filter(
+  b => b.time + candleSeconds <= now
+);
+
+makeSignal(closedBars);
+
   }catch(e){
     resetSignal("Live data failed. No signal is shown.");
     setText("chartStatus","Data error: "+e.message);
